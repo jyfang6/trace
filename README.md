@@ -29,7 +29,7 @@ where `--raw_data_folder` specifies the folder containing the raw data and `--sa
 TRACE uses the following steps to answer multi-hop questions: (1) KG generation; (2) reasoning chain construction; (3) answer generation. 
 We provide commands for each of these steps and the prompts for these steps can be found in the `prompts/` folder. 
 
-If you are only interested in the final results, you can download our processed data from [here](https://drive.google.com/drive/folders/1dActiZQi-knaIGEiV--2KgcilBObX1A3?usp=sharing) and skip directly to the Answer Generation step to evaluate the performance by running the provided command. 
+If you are only interested in the final results, you can download our generated data from [here](https://osf.io/p9ymg/?view_only=ad39cfb2c229493888e1e48fb44bd4a9) and skip directly to the Answer Generation step to evaluate the performance by running the provided command. 
 
 ### 1. KG Generation 
 Run the followiing command to generate KGs: 

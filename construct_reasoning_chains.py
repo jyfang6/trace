@@ -129,12 +129,12 @@ def get_llama3_generate_reasoning_chains_prompts_chat_format(
     prompts = []
     for triples, candidates in zip(existing_triples, candidate_triples):
 
-        instruction = "Select the next knowledge triple that extends an existing set of knowledge triples to form a coherent reasoning chain capable of answering a specified question. " \
-            "If the current reasoning chain is sufficient to answer the question, simply output A. Please only output the choice for the next knowledge triple."
+        instruction = "Select the next knowledge triple that extends an existing set of knowledge triples to form a coherent reasoning path capable of answering a specified question. " \
+            "If the current reasoning path is sufficient to answer the question, simply output A. Please only output the choice for the next knowledge triple."
         
         if not args.disable_demonstration:
-            instruction += "\n\nThe followings are some examples of coherent reasoning chains capable of answering the specified question " \
-                f"and how the {hop+1}-th knowledge triples in these chains are selected:\n\n"
+            instruction += "\n\nThe followings are some examples of coherent reasoning paths capable of answering the specified question " \
+                f"and how the {hop+1}-th knowledge triples in these paths are selected:\n\n"
             generate_reasoning_chains_examplars, reasoning_chains_examplars = get_dataset_demonstrations(args.dataset)
             if ranked_prompt_indices is not None:
                 reasoning_chains_examplars = [reasoning_chains_examplars[idx] for idx in ranked_prompt_indices]
@@ -149,8 +149,8 @@ def get_llama3_generate_reasoning_chains_prompts_chat_format(
             ):
                 if len(grp_examplar) < hop + 1:
                     continue 
-                examplar = "coherent reasoning chain: {}\nquestion: {}\n".format(rp_examplar["chains"], rp_examplar["question"])
-                examplar += "The {}-th triple in the reasoning chain is selected as:\n".format(hop+1)
+                examplar = "coherent reasoning path: {}\nquestion: {}\n".format(rp_examplar["chains"], rp_examplar["question"])
+                examplar += "The {}-th triple in the reasoning path is selected as:\n".format(hop+1)
                 one_step_item = grp_examplar[hop]
                 examplar += "existing knowledge triples: {}\nquestion: {}\ncandidate knowledge triples:\n{}\nthe next possible triple is:{}\n".format(
                     ", ".join(one_step_item["triples"]), one_step_item["question"], "\n".join(one_step_item["candidate_triples"]), one_step_item["answer"]
@@ -163,7 +163,7 @@ def get_llama3_generate_reasoning_chains_prompts_chat_format(
         else:
             instruction += "\n\n"
         
-        user_input_text = "The {}-th triple in the reasoning chain is selected as:\nexisting knowledge triples: {}\nquestion: {}\ncandidate knowledge triples:\n{}\nthe next possible triple is:".format(
+        user_input_text = "The {}-th triple in the reasoning path is selected as:\nexisting knowledge triples: {}\nquestion: {}\ncandidate knowledge triples:\n{}\nthe next possible triple is:".format(
             hop+1, ", ".join(triples), question, convert_candidate_triples_to_choices(candidates)
         )
         prompts.append(

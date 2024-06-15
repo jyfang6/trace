@@ -303,7 +303,6 @@ def generate_document_knowledge_graph(args):
     save_json(data, save_data_file, use_indent=True)
     print(f"Successfully save data to {save_data_file} ...")
 
-    # 删掉临时文件
     if os.path.exists(tmp_document_triples_file):
         os.remove(tmp_document_triples_file)
 
