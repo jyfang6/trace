@@ -1,0 +1,6 @@
+
+nltk 
+dill
+base58
+pytorch==2.2.1
+transformers==4.40.0

@@ -1,0 +1,9 @@
+__pycache__
+.ipynb_checkpoints/ 
+checkpoint/
+data/
+wandb/
+core.*
+llama/
+*.sh 
+nohup.out
