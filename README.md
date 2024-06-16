@@ -67,7 +67,3 @@ python evaluation.py \
 `context_type`: Specifies the type of the context. Setting it to "triples" denotes the TRACE-Triple method. Setting it to "documents" denotes the TRACE-Doc method. Setting it to "all_documents" denotes using all the documents as context. 
 
 `num_context`: Specifies the number of reasoning chains used for each question. 
-
-
-## Contact: 
-If you have any questions about the code, feel free to contact me via fangjy6@gmail.com. 
