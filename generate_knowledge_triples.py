@@ -238,6 +238,20 @@ def add_sentence_index_to_generated_triples(
 
 
 def generate_document_knowledge_graph(args):
+    """
+    (1) KG GENERATION STEP: Main function that orchestrates the knowledge graph generation process
+    
+    This function extracts knowledge triples from documents in the form of <head entity; relation; tail entity>.
+    The process includes:
+    1. Loading documents from input data
+    2. Identifying unique documents to avoid redundant processing
+    3. Generating knowledge triples using an LLM with in-context examples
+    4. Adding sentence indices to locate triples in original documents
+    5. Storing triples and their positions in the document collection
+    
+    Args:
+        args: Contains parameters like input/output file paths, model parameters, etc.
+    """
 
     data_file, save_data_file = args.input_data_file, args.save_data_file 
 
