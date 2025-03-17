@@ -95,7 +95,9 @@ def get_llama3_generate_reasoning_chains_prompts_chat_format(
     candidate_triples: List[List[str]],
     ranked_prompt_indices: list = None, 
 ) -> List[str]:
-
+    """
+    Creates prompts that guide the LM to select appropriate next triples
+    """
     global tokenizer
     tokenizer = get_tokenizer() if tokenizer is None else tokenizer
 
@@ -238,7 +240,21 @@ def get_answer_token_indices(num_choices, token_ids):
 
 
 def construct_reasoning_chains(args):
-
+    """
+    (2) REASONING CHAIN CONSTRUCTION STEP: Main function that constructs reasoning chains from knowledge graph triples
+    
+    This function builds coherent reasoning paths through knowledge triples to answer multi-hop questions by:
+    1. Loading knowledge triples from the KG generated in step 1
+    2. Computing embeddings for these triples using a retrieval model
+    3. Iteratively constructing reasoning paths by selecting relevant triples:
+       a. For each partial path, find candidate triples using embedding similarity
+       b. Guide the LLM to select the best next triple or determine the path is complete
+       c. Maintain multiple candidate paths using beam search
+    4. Storing the highest-scoring paths for each question
+    
+    Args:
+        args: Contains parameters for processing data, chain length, models, etc.
+    """
     data_file, save_data_file = args.input_data_file, args.save_data_file 
 
     if os.path.exists(save_data_file):
@@ -282,6 +298,7 @@ def construct_reasoning_chains(args):
                 triples.append("<{}; {}; {}>".format(triple_item["head"], triple_item["relation"], triple_item["tail"]))
                 triple_positions.append(triple_item["position"])
         
+        # Compute embeddings for all knowledge triples to enable similarity-based retrieval
         num_total_triples = len(triples)
         if args.ranking_model == "e5_mistral":
             triples_embeddings = get_e5_mistral_embeddings_for_document(triples, max_length=128, batch_size=2)
@@ -290,33 +307,46 @@ def construct_reasoning_chains(args):
         elif args.ranking_model == "e5":
             triples_embeddings = get_e5_embeddings_for_document(triples, max_length=128, batch_size=2)
 
+        # Initialize beam search with empty paths
         paths = [[]]
         paths_scores = [1.0]
         paths_finished = [False]
+        
+        # Iteratively construct reasoning paths by selecting relevant triples
         for j in range(args.max_chain_length):
             if np.sum(paths_finished) == args.num_chains:
                 break
+                
+            # Create query representations from current paths and question
             queries = [
                 "knowledge triples: {}\nquestion: {}".format(
                     " ".join([triples[idx] for idx in path]), question
                 )
                 for path in paths
             ]
+            
+            # Get embeddings for current path + question combinations
             if args.ranking_model == "e5_mistral":
                 queries_embeddings = get_e5_mistral_embeddings_for_query("retrieve_relevant_triples", queries, max_length=256, batch_size=1)
             elif args.ranking_model == "dragon_plus":
                 queries_embeddings = get_dragon_plus_embeddings_for_query(queries, max_length=256, batch_size=2)
             elif args.ranking_model == "e5":
                 queries_embeddings = get_e5_embeddings_for_query(queries, max_length=256, batch_size=2)
+                
+            # Calculate similarity between queries and all triples
             queries_triples_similarities = torch.matmul(queries_embeddings, triples_embeddings.T) # n_path, n_triples 
 
+            # Mask out triples already used in each path
             candidate_triples_mask = torch.ones_like(queries_triples_similarities)
             for k, path in enumerate(paths):
                 candidate_triples_mask[k, path] = 0.0 
             queries_triples_similarities = queries_triples_similarities + \
                 torch.finfo(queries_triples_similarities.dtype).min * (1.0 - candidate_triples_mask)
+                
+            # Select top-k most relevant triples for each path
             topk_most_relevant_triples_indices = torch.topk(queries_triples_similarities, k=min(args.num_choices, num_total_triples), dim=1)[1].tolist()
 
+            # Create prompts for LLM to select the next triple for each path
             prompts = get_llama3_generate_reasoning_chains_prompts_chat_format(
                 args = args, 
                 hop = j, 
@@ -328,9 +358,12 @@ def construct_reasoning_chains(args):
                 ],
                 ranked_prompt_indices = example.get("ranked_prompt_indices", None)
             )
+            
+            # Generate LLM responses to select next triple or end path
             inputs = tokenizer_encode_chat_format_for_instruction_model(prompts, args.max_length)
             generated_token_ids, generated_token_logits = model_generate(inputs, max_new_tokens=args.max_new_tokens, batch_size=2)
 
+            # Process LLM responses to extract choices
             answer_token_indices = get_answer_token_indices(args.num_choices, generated_token_ids)
             answer_token_logits = generated_token_logits.gather(1, \
                 answer_token_indices[:, None, None].expand(-1, -1, generated_token_logits.shape[-1]))
@@ -340,6 +373,7 @@ def construct_reasoning_chains(args):
             choices_list = [token_id_to_choice_map[token_id] for token_id in choices_token_ids_list]
             answer_token_probs = F.softmax(answer_token_logits[:, choices_token_ids_list], dim=1)
 
+            # Extend current paths with new triples (beam search)
             new_paths, new_paths_scores, new_paths_finished = [], [], []
             topk_choices_probs, topk_choices_indices = torch.topk(answer_token_probs, k=args.num_beams, dim=1)
 
@@ -363,12 +397,15 @@ def construct_reasoning_chains(args):
                         continue
                     new_paths_scores.append(paths_scores[i]*topk_choices_probs[i, b].item())
                     if current_choice == 'A':
+                        # Choice A means "no need for additional knowledge triples" - path is complete
                         new_paths.append(paths[i]+[-1]) 
                         new_paths_finished.append(True)
                     else:
+                        # Add the selected triple to the path
                         new_paths.append(paths[i]+[topk_most_relevant_triples_indices[i][ord(current_choice)-ord('B')]])
                         new_paths_finished.append(False)
             
+            # Select top-k paths by score for next iteration
             assert len(new_paths) == len(new_paths_scores)
             assert len(new_paths) == len(new_paths_finished)
             new_paths_sorted_indices = sorted(range(len(new_paths_scores)), key=lambda x: new_paths_scores[x], reverse=True)
@@ -377,6 +414,7 @@ def construct_reasoning_chains(args):
             paths_scores = [new_paths_scores[idx] for idx in topk_new_paths_sorted_indices]
             paths_finished = [new_paths_finished[idx] for idx in topk_new_paths_sorted_indices]
         
+        # Store the final reasoning chains in the example
         example["chains"] = [
             {
                 "triples":[
