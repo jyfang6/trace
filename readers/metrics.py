@@ -48,6 +48,12 @@ def f1_score(prediction, ground_truth):
     ground_truth_tokens = normalized_ground_truth.split()
     common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
     num_same = sum(common.values())
+    if len(prediction_tokens) == 0 or len(ground_truth_tokens) == 0:
+        # If either is no-answer, then F1 is 1 if they agree, 0 otherwise 
+        if prediction_tokens == ground_truth_tokens:
+            return 1.0, 1.0, 1.0
+        else:
+            return ZERO_METRIC
     if num_same == 0:
         return ZERO_METRIC
     precision = 1.0 * num_same / len(prediction_tokens)
