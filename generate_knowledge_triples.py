@@ -259,6 +259,9 @@ def generate_document_knowledge_graph(args):
         print(f"{save_data_file} already exists, skip this ...")
         return
     
+    # create directory
+    os.makedirs(os.path.dirname(save_data_file), exist_ok=True)
+    
     print(f"loading data from {data_file} ...")
     data = load_json(data_file)
 

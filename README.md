@@ -1,6 +1,6 @@
 # TRACE the Evidence: Constructing Knowledge-Grounded Reasoning Chains for Retrieval-Augmented Generation
 
-This repository contains the official implementation of our TRACE framework. Details about TRACE can be found in our paper. 
+This repository contains the official implementation of our TRACE framework. Details about TRACE can be found in our [paper](https://aclanthology.org/2024.findings-emnlp.496.pdf). 
 
 ## Introduction 
 Retrieval-augmented generation (RAG) offers an effective approach for addressing question answering (QA) tasks. However, the imperfections of the retrievers in RAG models often result in the retrieval of irrelevant information, which could introduce noises and degrade the performance, especially when handling multi-hop questions that require multiple steps of reasoning.  To enhance the multi-hop reasoning ability of RAG models, we propose TRACE. TRACE constructs *knowledge-grounded reasoning chains*, which are a series of logically connected knowledge triples, to identify and integrate supporting evidence from the retrieved documents for answering questions. Specifically, TRACE first employs a KG Generator to create a knowledge graph (KG) from the retrieved documents, and then uses an Autoregressive Reasoning Chain Constructor to build reasoning chains. Given the reasoning chains, the TRACE reader either directly uses them as context to generate the answer (TRACE-Triple) or use the triples within these chains to retrieve their original documents and then uses these documents as the context to generate the answer (TRACE-Doc). 
